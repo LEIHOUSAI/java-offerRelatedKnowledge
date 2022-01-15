@@ -18,10 +18,9 @@
 - Next-key lock：record+gap 锁定一个范围，包含记录本身
 
 ### 三种锁的一些特点
-- innodb对于行的查询使用next-key lock
-- Next-locking keying为了解决Phantom Problem幻读问题
-- 当查询是唯一索引的唯一行时，将范围锁降级为记录锁
-- Gap锁设计的目的是为了阻止多个事务将记录插入到同一范围内，而这会导致幻读问题的产生
+- innodb对于行的查询使用next-key lock，临键锁是为了解决幻读问题的，默认是左开右闭
+- 当查询条件不能覆盖到记录时，临键锁退化为间隙锁gap lock
+- 当查询是唯一索引的唯一行时，临键锁退化为记录锁record lock
 - 有两种方式显式关闭gap锁：（除了外键约束和唯一性检查外，其余情况仅使用record lock） A. 将事务隔离级别设置为RC B. 将参数innodb_locks_unsafe_for_binlog设置为1（已废弃）
 
 ### 索引覆盖问题

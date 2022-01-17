@@ -114,16 +114,16 @@ kafka因为消息写入是通过PageCache异步写入磁盘的，因此仍然存
 综合这几个参数设置，我们就能保证消息不会丢失，保证了可靠性。
 
 ### 讲讲副本和它的同步原理吧
-- Kafka副本的之前提到过，分为Leader副本和Follower副本，也就是主副本和从副本，和其他的比如Mysql不一样的是，Kafka中只有Leader副本会对外提供服务，Follower副本只是单纯地和Leader保持数据同步，作为数据冗余容灾的作用。
+- Kafka副本的分为Leader副本和Follower副本，和其他的比如Mysql不一样的是，Kafka中只有Leader副本会对外提供服务，Follower副本只是单纯地和Leader保持数据同步，作为数据冗余容灾的作用。
 - 在Kafka中我们把所有副本的集合统称为AR（Assigned Replicas），和Leader副本保持同步的副本集合称为ISR（InSyncReplicas）。
 - ISR是一个动态的集合，维持这个集合会通过replica.lag.time.max.ms参数来控制，这个代表落后Leader副本的最长时间，默认值10秒，所以只要Follower副本没有落后Leader副本超过10秒以上，就可以认为是和Leader同步的（简单可以认为就是同步时间差）。
 
 另外还有两个关键的概念用于副本之间的同步：
-- HW（High Watermark）：高水位，也叫做复制点，表示副本间同步的位置。如下图所示，04绿色表示已经提交的消息，这些消息已经在副本之间进行同步，消费者可以看见这些消息并且进行消费，46黄色的则是表示未提交的消息，可能还没有在副本间同步，这些消息对于消费者是不可见的。
+- HW（High Watermark）：高水位，也叫做复制点，表示副本间同步的位置。如下图所示，绿色表示已经提交的消息，这些消息已经在副本之间进行同步，消费者可以看见这些消息并且进行消费，黄色的则是表示未提交的消息，可能还没有在副本间同步，这些消息对于消费者是不可见的。
 - LEO（Log End Offset）：下一条待写入消息的位移
   ![avatar](./image/kafka8.png)
   
-副本间同步的过程依赖的就是HW和LEO的更新，以他们的值变化来演示副本同步消息的过程，绿色表示Leader副本，黄色表示Follower副本。
+副本间同步的过程依赖的就是HW和LEO的更新，具体步骤如下：
 - 生产者不停地向Leader写入数据，这时候Leader的LEO可能已经达到了10，但是HW依然是0，两个Follower向Leader请求同步数据，他们的值都是0。
   ![avatar](./image/kafka9.png)
 - 消息还在继续写入，Leader的LEO值又发生了变化，两个Follower也各自拉取到了自己的消息，于是更新自己的LEO值，但是这时候Leader的HW依然没有改变。

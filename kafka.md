@@ -113,7 +113,7 @@ kafka因为消息写入是通过PageCache异步写入磁盘的，因此仍然存
 
 综合这几个参数设置，我们就能保证消息不会丢失，保证了可靠性。
 
-### 副本和它的同步原理吧
+### 讲讲副本和它的同步原理吧
 - Kafka副本的之前提到过，分为Leader副本和Follower副本，也就是主副本和从副本，和其他的比如Mysql不一样的是，Kafka中只有Leader副本会对外提供服务，Follower副本只是单纯地和Leader保持数据同步，作为数据冗余容灾的作用。
 - 在Kafka中我们把所有副本的集合统称为AR（Assigned Replicas），和Leader副本保持同步的副本集合称为ISR（InSyncReplicas）。
 - ISR是一个动态的集合，维持这个集合会通过replica.lag.time.max.ms参数来控制，这个代表落后Leader副本的最长时间，默认值10秒，所以只要Follower副本没有落后Leader副本超过10秒以上，就可以认为是和Leader同步的（简单可以认为就是同步时间差）。

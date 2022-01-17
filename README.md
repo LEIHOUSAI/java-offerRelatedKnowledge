@@ -13,3 +13,5 @@
 [redis相关](https://github.com/LEIHOUSAI/java-offerRelatedKnowledge/blob/main/redis%E7%9B%B8%E5%85%B3.md 'redis相关')
 
 [SSM相关](https://github.com/LEIHOUSAI/java-offerRelatedKnowledge/blob/main/SSM%E7%9B%B8%E5%85%B3.md 'SSM相关')
+
+[kafka相关](https://github.com/LEIHOUSAI/java-offerRelatedKnowledge/blob/main/kafka.md 'kafka相关')

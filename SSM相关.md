@@ -94,12 +94,12 @@ A对象的创建过程：
 1. 实例化，创建一个Bean对象
 2. 填充属性，为属性赋值
 3. 初始化
-  - 如果实现了xxxAware接口，通过不同类型的Aware接口拿到Spring容器的资源
-  - 如果实现了BeanPostProcessor接口，则会回调该接口的postProcessBeforeInitialzation和postProcessAfterInitialization方法
-  - 如果配置了init-method方法，则会执行init-method配置的方法
+   - 如果实现了xxxAware接口，通过不同类型的Aware接口拿到Spring容器的资源
+   - 如果实现了BeanPostProcessor接口，则会回调该接口的postProcessBeforeInitialzation和postProcessAfterInitialization方法
+   - 如果配置了init-method方法，则会执行init-method配置的方法
 4. 销毁 
-  - 容器关闭后，如果Bean实现了DisposableBean接口，则会回调该接口的destroy方法   
-  - 如果配置了destroy-method方法，则会执行destroy-method配置的方法
+   - 容器关闭后，如果Bean实现了DisposableBean接口，则会回调该接口的destroy方法   
+   - 如果配置了destroy-method方法，则会执行destroy-method配置的方法
 
 ### 类的作用域
 - singleton : bean在每个Spring ioc 容器中只有一个实例。

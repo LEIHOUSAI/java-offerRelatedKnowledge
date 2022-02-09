@@ -20,12 +20,58 @@
 ### 三种锁的一些特点
 - innodb对于行的查询使用next-key lock，临键锁是为了解决幻读问题的，默认是左开右闭
 - 当查询条件不能覆盖到记录时，临键锁退化为间隙锁gap lock
-- 当查询是唯一索引的唯一行时，临键锁退化为记录锁record lock
+- 当查询是唯一索引 & 唯一列时，临键锁退化为记录锁record lock
 
 ### 脏读、不可重复读、幻读
 - 脏读：其他事务未提交的记录，能被读到
-- 不可重复读：两次读取到的记录不一样，原因是两次读的动作在其它事务提交前后
-- 幻读：两次读取的条数不一样，innodb使用临键锁解决这个问题，实际上就是让加锁的范围进行一定程度的扩大
+- 不可重复读：两次读取到的记录不一样，读取了其他事务更改的数据，主要针对update操作，原因是两次读的动作在其它事务提交前后
+- 幻读：读取了其他事务新增的数据，针对insert和delete操作，innodb使用临键锁解决这个问题，实际上就是让加锁的范围进行一定程度的扩大
+
+### 幻读问题示例
+建表如下
+```sql
+CREATE TABLE t (a INT PRIMARY KEY);
+INSERT INTO t VALUES (1), (2), (5);
+```
+事务1：
+```sql
+BEGIN;
+SELECT * FROM t WHERE a > 2 FOR UPDATE;
+```
+事务2：
+```sql
+BEGIN;
+INSERT INTO t SELECT 4;
+COMMIT;
+```
+- 正常情况下，事务1会锁住(2,5]、(5,+∞]，那么事务2就不能成功insert，就没有幻读问题
+- 如果事务1加一句`SET SESSION tx_isolation='READ-COMMITTED'`，此时，next-key lock失效，事务2执行前，事务1的结果是5，事务2执行后，事务1的结果是4、5，这就是幻读问题
+- 如果事务1语句改为`SELECT * FROM t WHERE a > 2 AND a < 5 FOR UPDATE`，此时临键锁降级为间隙锁，锁定范围为(2,5)，事务2依然无法insert
+- 如果事务1语句改为`SELECT * FROM t WHERE a = 2 FOR UPDATE`，此时临键锁降级为行锁，事务2能够成功insert
+  
+### 唯一索引由多个列组成，而查询条件仅是其中一列的情况
+建表如下
+```sql
+CREATE TABLE Z ( a INT, b INT, PRIMARY KEY (a), KEY (b));
+INSERT INTO Z
+VALUES (1, 1),
+	     (3, 1),
+       (5, 3),
+	     (7, 6),
+	     (10, 8);
+```
+事务1：
+```sql
+SELECT * FROM Z WHERE b=3 FOR UPDATE;
+```
+- 对于聚簇索引，仅对列a等于5的索引加上Record Lock
+- 对于辅助索引，其加上的是Next-Key Locking，锁定的范围是(1,3]、(3,6]
+因此，对于事物2中的如下语句都会阻塞：
+```sql
+SELECT * FROM Z WHERE a=5 LOCK IN SHARE MODE;  -- 因为a=5的行已经加上X锁
+INSERT INTO Z SELECT 4,2;  -- 主键插入4，没有问题，但是插入的辅助索引值2在锁定的范围(1,3]中
+INSERT INTO Z SELECT 6,5;  -- 同样，因为辅助索引的范围(3,6]已经被锁定
+```
 
 ### mvcc多版本并发控制
 - 核心是对每条记录多加两个字段：数据行的版本号 （DB_TRX_ID）、删除版本号 (DB_ROLL_PT)

@@ -55,10 +55,10 @@ COMMIT;
 CREATE TABLE Z ( a INT, b INT, PRIMARY KEY (a), KEY (b));
 INSERT INTO Z
 VALUES (1, 1),
-	     (3, 1),
+       (3, 1),
        (5, 3),
-	     (7, 6),
-	     (10, 8);
+       (7, 6),
+       (10, 8);
 ```
 事务1：
 ```sql

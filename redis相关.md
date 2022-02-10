@@ -143,7 +143,7 @@ Redis 提供两种持久化机制： RDB（默认） 和 AOF 机制
 4. 客观下线（odwon）：当 sentinel 主观下线的节点是主节点时，该 sentinel 节点会通过sentinel ismaster-down-by-addr命令向其他 sentinel 节点询问对主节点的判断，当超过quorum个数（可配置）的 sentinel 节点认为主节点确实有问题，这时该 sentinel 节点会做出客观下线的决定
 #### 主从切换的过程
 ![avatar](./image/redis/redis-4.png)
-1. 每个 sentinel 节点通过定期监控 master 的健康状况。
+1. 每个 sentinel 节点定期监控 master 的健康状况。
 2. 主节点出现故障，两个从节点与主节点失去连接，主从复制失败。
 3. sentinel 集群 发现 master 故障后，多个 sentinel 节点对主节点的故障达成一致，在 3 个 sentinel 节点中选择一个作为 leader ，例如，选举出 sentinel-0 节点作为 leader，来负责故障转移。
 4. leader sentinel 把一个 slave 节点提升为 master，并让另一个 slave 从新的 master 复制数据，并告知客户端新的 master 的信息。

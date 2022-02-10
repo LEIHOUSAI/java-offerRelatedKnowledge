@@ -82,7 +82,8 @@ String，list，hash，set，zset
 - 每个节点都带有一个高度为 1 层的后退指针，用于从表尾方向向表头方向迭代：当执行 ZREVRANGE 或 ZREVRANGEBYSCORE 这类以逆序处理有序集的命令时，就会用到这个属性。
 
 ### redis是怎么实现延时队列的
-使用redis的zset相关指令，zadd可以给每个value赋上一个score，那么我们add的时候可以直接用delay之后的时间戳作为value的score，然后定时触发zrangebyscore指令，每次获取最临近的一个value，拿出之后和当前时间进行对比，如果小于当前时间的话就进行处理。相关命令：ZRANGEBYSCORE key -inf +inf limit 0 1
+使用redis的zset相关指令，zadd可以给每个value赋上一个score，那么我们add的时候可以直接用delay之后的时间戳作为value的score，然后定时触发zrangebyscore指令，每次获取最临近的一个value，拿出之后和当前时间进行对比，如果小于当前时间的话就进行处理。
+- 相关命令：ZRANGEBYSCORE key -inf +inf limit 0 1
 这样做有以下好处：
 - 结构简单，利用redis的特性能够做到高并发和高可用，而且利用了redis的持久化的持久化，不必再单独实现
 - 可以随时修改要delay的时间，只需再次使用zadd即可进行score的覆盖

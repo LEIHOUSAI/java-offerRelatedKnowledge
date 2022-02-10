@@ -86,7 +86,7 @@ String，list，hash，set，zset
 - 相关命令：ZRANGEBYSCORE key -inf +inf limit 0 1
   
 这样做有以下好处：
-- 结构简单，利用redis的特性能够做到高并发和高可用，而且利用了redis的持久化的持久化，不必再单独实现
+- 结构简单，利用redis的特性能够做到高并发和高可用，而且利用了redis的持久化机制，不必再单独实现
 - 可以随时修改要delay的时间，只需再次使用zadd即可进行score的覆盖
 
 ### Redis的过期键的删除策略

@@ -129,17 +129,33 @@ Redis 提供两种持久化机制： RDB（默认） 和 AOF 机制
   4. AOF 文件比 RDB 文件大，且恢复速度慢。
   5. 数据集大的时候，比 rdb 启动效率低。
    
-### Redis Sentinel的主要工作流程
-- 每个 Sentinel 每隔10秒向master发送info命令，获取master和它下面所有slave的当前信息
-- 当发现master有新的slave之后，sentinel和新的slave同样建立两个连接，同时每隔10秒发送info命令，更新master信息
-- 每个 Sentinel 以每秒钟一次的频率，向它所知的主服务器、从服务器以及其他 Sentinel 实例发送一个 PING 命令。
-- 如果一个实例（instance）距离 最后一次有效回复 PING 命令的时间超过 down-after-milliseconds 所指定的值，那么这个实例会被 Sentinel 标记为主观下线。
-- 如果一个主服务器被标记为主观下线，那么正在监视这个主服务器的所有 Sentinel 节点，要以每秒一次的频率确认主服务器的确进入了主观下线状态。当有足够数量的Sentinel（至少要达到配置文件指定的数量）在指定的时间范围内同意这一判断，那么这个主服务器被标记为客观下线。
-- 当一个主服务器被 Sentinel 标记为客观下线时，Sentinel 向下线主服务器的所有从服务器发送 INFO 命令的频率，会从 10 秒一次改为每秒一次。
-- Sentinel 和其他 Sentinel 协商主节点的状态，如果主节点处于 SDOWN 状态，则投票自动选出新的主节点。将剩余的从节点指向新的主节点进行数据复制。
-- 当没有足够数量的 Sentinel 同意主服务器下线时， 主服务器的客观下线状态就会被移除。当主服务器重新向 Sentinel 的 PING 命令返回有效回复时，主服务器的主观下线状态就会被移除。
-- 注意：一个有效的 PING 回复可以是：+PONG、-LOADING 或者 -MASTERDOWN。如果 服务器 返回除以上三种回复之外的其他回复，又或者在指定时间内没有回复 PING 命令， 那么 Sentinel 认为服务器返回的回复无效（non-valid）。
-- sentinel典型配置是一主两从，外加三台redis服务器
+### Redis Sentinel 集群在 redis 主从架构高可用中起到的 4 个作用
+1. 集群监控：sentinel 节点会定期检测 redis 数据节点、其余 sentinel 节点是否故障。
+2. 故障转移：实现从节点晋升为主节点并维护后续正确的主从关系。
+3. 配置中心：sentinel 架构中，客户端在初始化的时候连接的是 sentinel 集群，从中获取主节点信息。
+4. 消息通知：sentinel 节点会将故障转移的结果通知给客户端。
+#### sentinel 集群的监控功能详解
+1. 每隔10秒，每个 sentinel 节点会向主节点和从节点发送 info 命令获取 redis 主从架构的最新情况，所以 sentinel 节点不需要显式配置监控从节点，当有新的从节点加入时都可以立刻感知出来，当 master 节点故障或者故障转移后，可以通过 info 命令实时更新 redis 主从信息。
+2. 每隔2秒，每个 sentinel 节点会向 redis 数据节点的__sentinel__:hello这个channel（频道）发送一条消息，每个 sentinel 节点会订阅该 channel，来了解其他 sentinel 节点以及它们对主节点的判断，所以这个定时任务可以完成以下两个工作：
+   1. 发现新的 sentinel节点：通过订阅主节点的__sentinel__:hello了解其他的 sentinel 节点信息，如果是新加入的 sentinel 节点，将该 sentinel 节点信息保存起来，并与该 sentinel 节点创建连接
+   2. sentinel 节点之间交换主节点的状态，用于确认 master 下线和故障处理的 leader 选举。
+3. 每隔1秒，每个 sentinel 节点会向主节点、从节点、其余 sentinel 节点发送一条ping命令做一次心跳检测，来确认这些节点是否可达。当这些节点超过down-after-milliseconds没有进行有效回复，sentinel节点就会认为该节点下线，这个行为叫做主观下线（sdown）。主观下线是某个 sentinel 节点的判断，并不是 sentinel 集群的判断，所以存在误判的可能。
+4. 客观下线（odwon）：当 sentinel 主观下线的节点是主节点时，该 sentinel 节点会通过sentinel ismaster-down-by-addr命令向其他 sentinel 节点询问对主节点的判断，当超过quorum个数（可配置）的 sentinel 节点认为主节点确实有问题，这时该 sentinel 节点会做出客观下线的决定
+#### 主从切换的过程
+![avatar](./image/redis/redis-4.png)
+1. 每个 sentinel 节点通过定期监控 master 的健康状况。
+2. 主节点出现故障，两个从节点与主节点失去连接，主从复制失败。
+3. sentinel 集群 发现 master 故障后，多个 sentinel 节点对主节点的故障达成一致，在 3 个 sentinel 节点中选择一个作为 leader ，例如，选举出 sentinel-0 节点作为 leader，来负责故障转移。
+4. leader sentinel 把一个 slave 节点提升为 master，并让另一个 slave 从新的 master 复制数据，并告知客户端新的 master 的信息。
+5. 故障的旧 master 上线后，leader sentinel 让它从新的 master 复制数据。
+使用 sentinel 集群而不是单个 sentinel 节点去监控 redis 主从架构有两个好处：
+1. 对于节点的故障判断由多个 sentinel 节点共同完成，这样可以有效地防止误判。
+2. sentinel 集群可以保证自身的高可用性，即某个 sentinel 节点自身故障也不会影响 sentinel 集群的健壮性。
+#### Redis Sentinel 可能出现的问题以及解决办法
+redis sentinel 无法保证数据完全不丢失，原因有两个：
+1. 异步复制导致的数据丢失，因为 master -> slave 的复制是异步的，所以可能有部分数据还没复制到 slave，master 就宕机了，此时这部分数据就丢失了。
+2. redis 服务脑裂导致的数据丢失。此时虽然某个 slave 被切换成了 master，但是 client 还没来得及切换到新的master，还继续向旧 master 写数据。因为旧 master 再次恢复的时候，会被作为一个 slave 挂到新的 master 上去，自己的数据会清空，这就会造成数据丢失。
+- 脑裂：某个 master 所在机器突然网络故障，跟其他 slave 机器不能连接，但是实际上 master 还运行着，此时哨兵可能就会认为 master 宕机了，然后开启选举，将其他 slave 切换成了master，这个时候，集群里就会有两个master，也就是所谓的脑裂。
 
 ### 能说说redis集群的原理吗？
 如果说依靠哨兵可以实现redis的高可用，如果还想在支持高并发同时容纳海量的数据，那就需要redis集群。redis集群是redis提供的分布式数据存储方案，集群通过数据分片sharding来进行数据的共享，同时提供复制和故障转移的功能。

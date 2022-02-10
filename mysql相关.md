@@ -81,8 +81,18 @@ INSERT INTO Z SELECT 6,5;  -- 同样，因为辅助索引的范围(3,6]已经被
 ### 索引覆盖问题
 索引覆盖的意思就是要查询的所有字段都包含在索引中，通过一个索引结构就能查出来，不需要回表
 
-### mysql联合索引
-当创建(a,b,c)联合索引时，相当于创建了(a)单列索引，(a,b)联合索引以及(a,b,c)联合索引，想要索引生效的话，只能使用 a和a,b和a,b,c三种组合；当然，a,c组合也可以，但实际上只用到了a的索引，c并没有用到！
+### 索引的B+树结构
+#### 唯一索引
+![avatar](./image/mysql/mysql-2.png)
+#### 联合索引
+建表：
+```sql
+CREATE TABLE `t1` (a INT PRIMARY KEY, b INT, c INT, d INT, e VARCHAR(20));
+INSERT INTO t1 VALUES (),(),...();
+CREATE INDEX idx_t1_bcd ON t1(b,c,d);
+```
+![avatar](./image/mysql/mysql-3.png)
+相当于创建了(b)单列索引，(b,c)联合索引以及(b,c,d)联合索引，想要索引生效的话，只能使用 b和b,c和b,c,d三种组合；当然，b,d组合也可以，但实际上只用到了b的索引，d并没有用到！
 
 ### 加索引的一些原则
 - 需要加索引的字段，要在where条件中
@@ -98,7 +108,7 @@ INSERT INTO Z SELECT 6,5;  -- 同样，因为辅助索引的范围(3,6]已经被
 4. slave启动一个IO线程读取同步过来的master的binlog，记录到relay log中继日志中
 5. slave再开启一个sql线程读取relay log事件并在slave执行，完成同步
 6. slave记录自己的binglog
-  ![avatar](./image/mysql-1.png)
+  ![avatar](./image/mysql/mysql-1.png)
 由于mysql默认的复制方式是异步的，主库把日志发送给从库后不关心从库是否已经处理，这样会产生一个问题就是假设主库挂了，从库处理失败了，这时候从库升为主库后，日志就丢失了。由此产生两个概念：
 - 全同步复制：主库写入binlog后强制同步日志到从库，所有的从库都执行完成后才返回给客户端，但是很显然这个方式的话性能会受到严重影响。
 - 半同步复制：和全同步不同的是，半同步复制的逻辑是这样，从库写入日志成功后返回ACK确认给主库，主库收到至少一个从库的确认就认为写操作完成。

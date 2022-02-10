@@ -148,6 +148,7 @@ Redis 提供两种持久化机制： RDB（默认） 和 AOF 机制
 3. sentinel 集群 发现 master 故障后，多个 sentinel 节点对主节点的故障达成一致，在 3 个 sentinel 节点中选择一个作为 leader ，例如，选举出 sentinel-0 节点作为 leader，来负责故障转移。
 4. leader sentinel 把一个 slave 节点提升为 master，并让另一个 slave 从新的 master 复制数据，并告知客户端新的 master 的信息。
 5. 故障的旧 master 上线后，leader sentinel 让它从新的 master 复制数据。
+   
 使用 sentinel 集群而不是单个 sentinel 节点去监控 redis 主从架构有两个好处：
 1. 对于节点的故障判断由多个 sentinel 节点共同完成，这样可以有效地防止误判。
 2. sentinel 集群可以保证自身的高可用性，即某个 sentinel 节点自身故障也不会影响 sentinel 集群的健壮性。

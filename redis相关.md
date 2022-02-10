@@ -137,7 +137,7 @@ Redis 提供两种持久化机制： RDB（默认） 和 AOF 机制
 #### sentinel 集群的监控功能详解
 1. 每隔10秒，每个 sentinel 节点会向主节点和从节点发送 info 命令获取 redis 主从架构的最新情况，当有新的从节点加入，或者 master 节点故障转移后，可以通过 info 命令实时更新 redis 主从信息。
 2. 每隔2秒，每个 sentinel 节点会向 redis 数据节点的__sentinel__:hello这个channel（频道）发送一条消息，每个 sentinel 节点会订阅该 channel，来了解其他 sentinel 节点以及它们对主节点的判断，所以这个定时任务可以完成以下两个工作：
-   1. 发现新的 sentinel节点：通过订阅主节点的__sentinel__:hello了解其他的 sentinel 节点信息，如果是新加入的 sentinel 节点，将该 sentinel 节点信息保存起来，并与该 sentinel 节点创建连接
+   1. 发现新的 sentinel节点，并与该 sentinel 节点创建连接
    2. sentinel 节点之间交换主节点的状态，用于确认 master 下线和故障处理的 leader 选举。
 3. 每隔1秒，每个 sentinel 节点会向主节点、从节点、其余 sentinel 节点发送一条ping命令做一次心跳检测，来确认这些节点是否可达。当这些节点超过down-after-milliseconds没有进行有效回复，sentinel节点就会认为该节点下线，这个行为叫做主观下线（sdown）。主观下线是某个 sentinel 节点的判断，并不是 sentinel 集群的判断，所以存在误判的可能。
 4. 客观下线（odwon）：当 sentinel 主观下线的节点是主节点时，该 sentinel 节点会通过sentinel ismaster-down-by-addr命令向其他 sentinel 节点询问对主节点的判断，当超过quorum个数（可配置）的 sentinel 节点认为主节点确实有问题，这时该 sentinel 节点会做出客观下线的决定

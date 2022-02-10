@@ -78,7 +78,7 @@ String，list，hash，set，zset
 - 表尾：全部由 NULL 组成，表示跳跃表的末尾。
 #### Redis 对跳表的优化
 - 允许重复的 score 值：多个不同的 member 的 score 值可以相同。
-- 进行对比操作时，不仅要检查 score 值，还要检查 member ：当 score 值可以重复时，单靠 score 值无法判断一个元素的身份，所以需要连 member 域都一并检查才行。
+- 进行对比操作时，不仅要检查 score 值，还要检查 member ：当 score 值可以重复时，单靠 score 值无法判断一个元素的身份，所以需要连 member 一并检查。
 - 每个节点都带有一个高度为 1 层的后退指针，用于从表尾方向向表头方向迭代：当执行 ZREVRANGE 或 ZREVRANGEBYSCORE 这类以逆序处理有序集的命令时，就会用到这个属性。
 
 ### redis是怎么实现延时队列的

@@ -131,7 +131,7 @@ Redis 提供两种持久化机制： RDB（默认） 和 AOF 机制
    
 ### Redis Sentinel的主要工作流程
 - 每个 Sentinel 每隔10秒向master发送info命令，获取master和它下面所有slave的当前信息
-- 当发现master有新的slave之后，sentinel和新的slave同样建立两个连接，同时每个10秒发送info命令，更新master信息
+- 当发现master有新的slave之后，sentinel和新的slave同样建立两个连接，同时每隔10秒发送info命令，更新master信息
 - 每个 Sentinel 以每秒钟一次的频率，向它所知的主服务器、从服务器以及其他 Sentinel 实例发送一个 PING 命令。
 - 如果一个实例（instance）距离 最后一次有效回复 PING 命令的时间超过 down-after-milliseconds 所指定的值，那么这个实例会被 Sentinel 标记为主观下线。
 - 如果一个主服务器被标记为主观下线，那么正在监视这个主服务器的所有 Sentinel 节点，要以每秒一次的频率确认主服务器的确进入了主观下线状态。当有足够数量的Sentinel（至少要达到配置文件指定的数量）在指定的时间范围内同意这一判断，那么这个主服务器被标记为客观下线。

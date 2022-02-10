@@ -79,7 +79,7 @@ String，list，hash，set，zset
 #### Redis 对跳表的优化
 - 允许重复的 score 值：多个不同的 value 的 score 值可以相同。
 - 进行对比操作时，不仅要检查 score 值，还要检查 value ：当 score 值可以重复时，单靠 score 值无法判断一个元素的身份，所以需要连 value 一并检查。
-- 每个节点都带有一个高度为 1 层的后退指针，用于从表尾方向向表头方向迭代：当执行 ZREVRANGE 或 ZREVRANGEBYSCORE 这类以逆序处理有序集的命令时，就会用到这个属性。
+- 每个节点都带有一个高度为 1 层的后退指针，用于从表尾方向向表头方向迭代：当执行 ZREVRANGE 或 ZREVRANGEBYSCORE 这类命令时，就会用到这个属性。
 
 ### redis是怎么实现延时队列的
 使用redis的zset相关指令，zadd可以给每个value赋上一个score，那么我们add的时候可以直接用delay之后的时间戳作为value的score，然后定时触发zrangebyscore指令，每次获取最临近的一个value，拿出之后和当前时间进行对比，如果小于当前时间的话就进行处理。

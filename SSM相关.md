@@ -123,6 +123,13 @@ A对象的创建过程：
 @Autowired默认是按照类型装配注入的，默认情况下它要求依赖对象必须存在（可以设置它required属性为false）
 @Resource默认是按照名称来装配注入的，只有当找不到与名称匹配的bean才会按照类型来装配注入
 
+### spring事务在什么情况下不生效
+1. 数据库引擎不支持事务
+2. 没有被 Spring 管理，如没有加 @Service 注解
+3. 方法不是 public 的，@Transactional只能用于public方法上
+4. 类内自身调用，默认只有在外部调用事务才会生效，解决方案之一就是在的类中注入自己，用注入的对象再调用另外一个方法，或者将被调用方法写到新的类中
+5. 异常类型错误，默认回滚的是：RuntimeException，如果你想触发其他异常的回滚，需要在注解上配置一下，@Transactional(rollbackFor = Exception.class)
+
 ### spring 的事务隔离:
 - ISOLATION_DEFAULT，用底层数据库的隔离级别
 - ISOLATION_READ_UNCOMMITTED， 未提交读，事务未提交前，就可被其他事务读取，会出现幻读、脏读、不可重复读

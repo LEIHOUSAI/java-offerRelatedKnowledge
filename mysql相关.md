@@ -138,5 +138,8 @@ CREATE INDEX idx_t1_bcd ON t1(b,c,d);
 - 通过步骤一的连接，发送结果到客户端
 - 关掉连接，释放资源
 
+### 执行一条语句的详细步骤
+![avatar](./image/mysql/mysql-4.png)
+
 ### 分区相关
 https://www.cnblogs.com/GrimMjx/p/10526821.html

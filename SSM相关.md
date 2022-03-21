@@ -127,8 +127,46 @@ A对象的创建过程：
 1. 数据库引擎不支持事务
 2. 没有被 Spring 管理，如没有加 @Service 注解
 3. 方法不是 public 的，@Transactional只能用于public方法上
-4. 类内自身调用，默认只有在外部调用事务才会生效，解决方案之一就是在的类中注入自己，用注入的对象再调用另外一个方法，或者将被调用方法写到新的类中
+4. 类内自身调用，默认只有在外部调用事务才会生效，原因是在spring中，当一个方法开启事务时，spring创建这个方法的类的bean对象，实际上创建的是代理对象。在代理bean对象中，一个方法调用本身的另一个方法，实则调用的代理对象的原始对象（不属于 spring bean）的方法，调用方法时不会去判断方法上的注解。解决方案之一就是在的类中注入自己，用注入的对象再调用另外一个方法，或者将被调用方法写到新的类中
 5. 异常类型错误，默认回滚的是：RuntimeException，如果你想触发其他异常的回滚，需要在注解上配置一下，@Transactional(rollbackFor = Exception.class)
+
+### spring事务的传播机制
+#### 为什么会有传播机制
+spring 对事务的控制，是使用 aop 切面实现的，我们不用关心事务的开始，提交，回滚，只需要在方法上加 @Transactional 注解，这时候就有问题了。
+- serviceA 方法调用了 serviceB 方法，但两个方法都有事务，这个时候如果 serviceB 方法异常，是让 serviceB 方法提交，还是两个一起回滚。
+- serviceA 方法调用了 serviceB 方法，但是只有 serviceA 方法加了事务，是否把 serviceB 也加入 serviceA 的事务，如果 serviceB 异常，是否回滚 serviceA 。
+- serviceA 方法调用了 serviceB 方法，两者都有事务，serviceB 已经正常执行完，但 serviceA 异常，是否需要回滚 serviceB 的数据。
+#### 传播机制生效条件
+因为 spring 是使用 aop 来代理事务控制 ，是针对于接口或类的，所以在同一个 service 类中两个方法的调用，传播机制是不生效的
+#### 传播机制类型
+PROPAGATION_REQUIRED (默认)
+- 支持当前事务，如果当前没有事务，则新建事务
+- 如果当前存在事务，则加入当前事务，合并成一个事务
+
+REQUIRES_NEW
+- 新建事务，如果当前存在事务，则把当前事务挂起
+- 这个方法会独立提交事务，不受调用者的事务影响，父级异常，它也是正常提交
+
+NESTED
+- 如果当前存在事务，它将会成为父级事务的一个子事务，方法结束后并没有提交，只有等父事务结束才提交
+- 如果当前没有事务，则新建事务
+- 如果它异常，父级可以捕获它的异常而不进行回滚，正常提交
+- 但如果父级异常，它必然回滚，这就是和 REQUIRES_NEW 的区别
+
+SUPPORTS
+- 如果当前存在事务，则加入事务
+- 如果当前不存在事务，则以非事务方式运行，这个和不写没区别
+
+NOT_SUPPORTED
+- 以非事务方式运行
+- 如果当前存在事务，则把当前事务挂起
+
+MANDATORY
+- 如果当前存在事务，则运行在当前事务中
+- 如果当前无事务，则抛出异常，也即父级方法必须有事务
+
+NEVER
+- 以非事务方式运行，如果当前存在事务，则抛出异常，即父级方法必须无事务
 
 ### spring 的事务隔离:
 - ISOLATION_DEFAULT，用底层数据库的隔离级别
@@ -251,3 +289,32 @@ base.add();
 Spring Boot 是 Spring 开源组织下的子项目，是 Spring 组件一站式解决方案，主要是简化了使用 Spring 的难度，简省了繁重的配置，提供了各种启动器，开发者能快速上手。
 
 ### 注解开发
+
+### mybatis一级缓存
+- 一级缓存是SqlSession级别的缓存。在操作数据库时需要构造 sqlSession对象，在对象中有一个数据结构（HashMap）用于存储缓存数据。不同的sqlSession之间的缓存数据区域（HashMap）是互相不影响的。
+- 一级缓存的作用域是同一个SqlSession，在同一个sqlSession中两次执行相同的sql语句，第一次执行完毕会将数据库中查询的数据写到缓存（内存），第二次会从缓存中获取数据将不再从数据库查询，从而提高查询效率。当一个sqlSession结束后该sqlSession中的一级缓存也就不存在了。Mybatis默认开启一级缓存。
+- 一级缓存只是相对于同一个SqlSession而言。所以在参数和SQL完全一样的情况下，我们使用同一个SqlSession对象调用一个Mapper方法，往往只执行一次SQL，因为使用SelSession第一次查询后，MyBatis会将其放在缓存中，以后再查询的时候，如果没有声明需要刷新，并且缓存没有超时的情况下，SqlSession都会取出当前缓存的数据，而不会再次发送SQL到数据库。
+#### 一级缓存的生命周期有多长
+- MyBatis在开启一个数据库会话时，会 创建一个新的SqlSession对象，SqlSession对象中会有一个新的Executor对象。Executor对象中持有一个新的PerpetualCache对象；当会话结束时，SqlSession对象及其内部的Executor对象还有PerpetualCache对象也一并释放掉。
+- 如果SqlSession调用了close()方法，会释放掉一级缓存PerpetualCache对象，一级缓存将不可用。
+- 如果SqlSession调用了clearCache()，会清空PerpetualCache对象中的数据，但是该对象仍可使用。
+- SqlSession中执行了任何一个update操作(update()、delete()、insert()) ，都会清空PerpetualCache对象的数据，但是该对象可以继续使用
+#### 怎么判断某两次查询是完全相同的查询
+如果以下条件都完全一样，那么就认为它们是完全相同的两次查询。
+1. 传入的statementId
+2. 查询时要求的结果集中的结果范围
+3. 这次查询所产生的最终要传递给JDBC java.sql.Preparedstatement的Sql语句字符串（boundSql.getSql() ）
+4. 传递给java.sql.Statement要设置的参数值
+
+### mybatis二级缓存
+MyBatis的二级缓存是Application级别的缓存，它可以提高对数据库查询的效率，以提高应用的性能。
+- 二级缓存是mapper级别的缓存，多个SqlSession去操作同一个Mapper的sql语句，多个SqlSession去操作数据库得到数据会存在二级缓存区域，多个SqlSession可以共用二级缓存
+- 二级缓存是多个SqlSession共享的，其作用域是mapper的同一个namespace，不同的sqlSession两次执行相同namespace下的sql语句且向sql中传递参数也相同即认为最终执行相同的sql语句，第一次执行完毕会将数据库中查询的数据写到缓存（内存），第二次会从缓存中获取数据将不再从数据库查询。
+- 实现二级缓存的时候，MyBatis要求返回的POJO必须是可序列化的。 也就是要求实现Serializable接口，Mybatis默认没有开启二级缓存，需要在setting全局参数中配置开启二级缓存。配置方法很简单，只需要在映射XML文件配置就可以开启缓存了\<setting name="cacheEnabled" value="true"\/\>
+#### 如果我们配置了二级缓存就意味着：
+- 映射语句文件中的所有select语句将会被缓存。
+- 映射语句文件中的所欲insert、update和delete语句会刷新缓存。
+- 缓存会使用默认的Least Recently Used（LRU，最近最少使用的）算法来收回。
+- 根据时间表，比如No Flush Interval,（CNFI没有刷新间隔），缓存不会以任何时间顺序来刷新。
+- 缓存会存储列表集合或对象(无论查询方法返回什么)的1024个引用
+- 缓存会被视为是read/write(可读/可写)的缓存，意味着对象检索不是共享的，而且可以安全的被调用者修改，不干扰其他调用者或线程所做的潜在修改。

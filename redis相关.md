@@ -190,3 +190,35 @@ redis通过MULTI、EXEC、WATCH等命令来实现事务机制，事务执行过�
 - 如果服务端正处于事务状态，则会把事务放入队列同时返回给客户端QUEUED，反之则直接执行这个命令
 - 当收到客户端EXEC命令时，WATCH命令监视整个事务中的key是否有被修改，如果有则返回空回复到客户端表示失败，否则redis会遍历整个事务队列，执行队列中保存的所有命令，最后返回结果给客户端
 
+### 超卖问题
+1. 首先通过redis api监听相关物品的库存信息，在事务开启前保证该物品库存信息无人修改
+2. 获取现有库存信息，判断库存不为0并且当前库存量大于等于订单所需数量
+3. 满足上述2的话则进行扣除操作
+4. 如果在1的过程中有别人更新了该物品库存信息版本，则重试
+5. 知道库存为0或者剩余库存不满足当前订单扣除数量退出
+```java
+for (i = 0; i < 100; i++) {
+    try {
+        //监视key,如果在后续事务执行之前key的值被其他命令所改动，那么事务将被打断
+        jedis.watch(stockId);
+        int prdNum = Integer.parseInt(jedis.get(stockId));
+        //判断库存是否满足订单数量要求
+        if (prdNum > 0 && prdNum - orders >= 0)) {
+            Transaction transaction = jedis.multi();
+            //减库存并写入
+            transaction.set(stockId, String.valueOf(prdNum - orders));
+            List<Object> res = transaction.exec();
+            //事务提交后如果为null,说明key值在本次事务提交前已经被改变，本次事务不执行。
+            if (res != null && !res.isEmpty()) {
+                System.out.println("抢购成功！");
+                break;
+            }
+        } else {
+            System.err.println("被抢光了！");
+            break;
+        }
+    } catch (Exception ignore) {} finally {
+        jedis.unwatch();
+    }
+}
+```

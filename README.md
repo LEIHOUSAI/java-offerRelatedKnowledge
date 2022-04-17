@@ -2,6 +2,8 @@
 
 经过2个多月的面试，拿到了还算心仪的offer，现将面试过程中遇到的知识进行系统总结，并定期维护，为下次面试做准备 - 2021.2.1
 
+被裁员。。又面了将近2个月才拿到offer，这次感觉比上次面试难度高多了，卷的太厉害 - 2022.4.17
+
 ## 分类
 
 [基础知识](https://github.com/LEIHOUSAI/java-offerRelatedKnowledge/blob/main/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86.md '基础知识')
